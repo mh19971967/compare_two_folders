@@ -89,9 +89,9 @@ def print_verbose(
 
 def search_file(filename, search_path="."):
     """
-    Search for a file in a folder and its subfolders recursively.
+    Search for a file in a folder and its sub folders recursively.
     """
-    # Iterate through all files and subfolders in the search path
+    # Iterate through all files and sub folders in the search path
     for root, dirnames, filenames in os.walk(search_path):
         # Check if the file is in the current directory
         if filename in filenames:
@@ -539,7 +539,7 @@ def compare_folders(
             for detail in def_files_identical[file]:
                 print_verbose(
                     f"                     -> {detail}",
-                    def_verbose["details"],
+                    def_verbose["details"] and def_verbose["files-pass"],
                 )
         if def_files_identical:
             print()
@@ -565,7 +565,6 @@ def compare_folders(
 
     def print_files_missing_with_search(
         def_files,
-        def_path,
         def_info,
     ):
         count_files = 0
@@ -574,43 +573,71 @@ def compare_folders(
             1,
         ):
             count_files += 1
-            file_found = search_file(os.path.basename(file), search_path=def_path)
-            if file_found:
-                file_source = f"{def_folder_source}/{os.path.basename(file)}"
+            file_name_only = os.path.basename(file)
+            path_only = os.path.dirname(path)
+            file_found_in_source = search_file(
+                file_name_only, search_path=def_folder_source
+            )
+            file_found_in_target = search_file(
+                file_name_only, search_path=def_folder_target
+            )
+            if file_found_in_source and file_found_in_target:
                 results = compare_files(
-                    file_source,
-                    file_found,
+                    file_found_in_source,
+                    file_found_in_target,
                     def_hash_algorithm,
                     def_options,
                 )
+                file_found_in_folder = {
+                    "source": file_found_in_source,
+                    "target": file_found_in_target,
+                }
+
                 file_identical = all((item["result"] for item in results))
                 if file_identical:
+                    print()
                     print(
                         f"{str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}: "
-                        f"ERROR->OK: File missing in {def_info}: '{file}' in '{path}'"
+                        f"ERROR->OK: File missing in {def_info}: '{file_name_only}' in '{path_only}'"
                     )
                     print(
-                        f"                     -> but found in target folder: {file_found}"
+                        f"                     -> but found in {def_info} folder: {file_found_in_folder[def_info]}"
                     )
                     print("                     -> and are identical: OK")
+                    print(
+                        f"                     -> check source file: {file_found_in_source}\n",
+                        f"                    -> check target file: {file_found_in_target}",
+                    )
                     for detail in results:
                         print_verbose(
                             f"                     -> {detail}",
                             def_verbose["details"],
                         )
+                    print()
                 else:
+                    print()
                     print(
                         f"{str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}: "
-                        f"ERROR:     File missing in {def_info}: '{file}' in '{path}'"
+                        f"ERROR:     File missing in {def_info}: '{file_name_only}' in '{path_only}'"
                     )
                     print(
-                        f"                     -> but found in target folder: {file_found}"
+                        f"                     -> but found in {def_info} folder: {file_found_in_folder[def_info]}"
                     )
                     print("                     -> but are NOT identical: ERROR")
+                    print(
+                        f"                     -> check source file: {file_found_in_source}\n",
+                        f"                    -> check target file: {file_found_in_target}",
+                    )
+                    for detail in results:
+                        print_verbose(
+                            f"                     -> {detail}",
+                            def_verbose["details"],
+                        )
+                    print()
             else:
                 print(
                     f"{str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}: "
-                    f"ERROR:     File missing in {def_info}: '{file}' in '{path}'"
+                    f"ERROR:     File missing in {def_info}: '{file_name_only}' in '{path_only}'"
                 )
         if def_files.items():
             print()
@@ -671,6 +698,7 @@ def compare_folders(
         def_verbose = {
             "general": True,
             "files-pass": True,
+            "details": True,
             "summary": True,
         }
     (
@@ -705,28 +733,17 @@ def compare_folders(
     count_files_pass = print_files_identical(files_identical)
 
     # Printing all files missing in source
-    count_files_missing_in_source = print_files_missing(
-        files_missing_source,
-        "WARNING:   File missing in source",
-    )
-    # TODO: COPY TO TARGET?
-
     count_files_missing_in_source = print_files_missing_with_search(
         files_missing_source,
-        def_folder_source,
         "source",
     )
 
     # Printing all files missing in target
-    count_files_missing_in_target = print_files_missing(
-        files_missing_target,
-        "ERROR:     File missing in target",
-    )
     count_files_missing_in_target = print_files_missing_with_search(
         files_missing_target,
-        def_folder_target,
         "target",
     )
+    # TODO: COPY TO TARGET?
 
     # Printing all files which are identical apart from the modification times (mtime)
     count_files_only_mtime_difference = print_files_only_mtime_difference(
@@ -766,8 +783,8 @@ if __name__ == "__main__":
     # /usr/local/bin/rsync -avzHXA --delete --progress --progress --stats --dry-run --iconv=UTF8,UTF8-MAC
     # --checksum test1/ test2/
 
-    folder1 = "/Users/mh/temp/test1"
-    folder2 = "/Users/mh/temp/test2"
+    # folder1 = "/Users/mh/temp/test1"
+    # folder2 = "/Users/mh/temp/test2"
     # folder1 = "/Users/mh/temp/movieposters1"
     # folder2 = "/Users/mh/temp/movieposters2"
     # folder1 = "/Users/mh/temp/01 - Januar"
@@ -776,12 +793,12 @@ if __name__ == "__main__":
     # folder2 = "/Users/mh/Documents/DJI Mini 3 Pro/DJI Mini 3 Pro"
     # folder1 = "/Users/mh/Documents/Bilder/Diverse Fotos"
     # folder2 = "/Volumes/ASRDataVolume_12004 - Daten/Users/mh/Documents/Bilder/Diverse Fotos"
-    # folder1 = "/Users/mh/ownCloud/HM"
-    # folder2 = "/Users/mh/ownCloud - hm@192.168.1.5"
+    folder1 = "/Users/mh/ownCloud/HM/Ulmenstrasse 16"
+    folder2 = "/Users/mh/ownCloud - hm@192.168.1.5/Ulmenstrasse 16"
 
     # Optional: specify a list of files to exclude
-    # exclude_files = [".DS_Store"]
-    exclude_files = []
+    # exclude_files = []
+    exclude_files = [".DS_Store"]
 
     # Optional: specify a list of file extensions to exclude
     # exclude_extensions = [".log"]
@@ -813,8 +830,8 @@ if __name__ == "__main__":
 
     verbose = {
         "general": True,
+        "files-pass": False,
         "details": True,
-        "files-pass": True,
         "summary": True,
     }
 
@@ -895,16 +912,28 @@ if __name__ == "__main__":
             verbose["summary"],
         )
 
+        sum_source_check = (
+            number_files_any_difference_but_mtime
+            + number_files_only_mtime_difference
+            + number_files_pass
+            + number_files_missing_in_target
+        )
         print_verbose(
             f"{str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}: "
             f"Number of files in source:                                "
-            f"'{sum_source:{digits_num_files}}'",
+            f"'{sum_source:{digits_num_files}}' (checked: {sum_source_check})",
             verbose["summary"],
+        )
+        sum_target_check = (
+            number_files_any_difference_but_mtime
+            + number_files_only_mtime_difference
+            + number_files_pass
+            + number_files_missing_in_source
         )
         print_verbose(
             f"{str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}: "
             f"Number of files in target:                                "
-            f"'{sum_target:{digits_num_files}}'",
+            f"'{sum_target:{digits_num_files}}' (checked: {sum_target_check})",
             verbose["summary"],
         )
         print_verbose(
